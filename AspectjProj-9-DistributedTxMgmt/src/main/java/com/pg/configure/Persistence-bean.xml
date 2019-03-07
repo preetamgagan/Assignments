@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.3.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.3.xsd">
+
+<!-- configure server managed datasource obj -->
+<bean id="oraDS" class="com.atomikos.jdbc.AtomikosDataSourceBean" init-method="init" destroy-method="close">
+ <property name="uniqueResourceName" value="XAOra"/>
+ <property name="xaDataSourceClassName" value="Oracle.jdbc.xa.client.OracleXADataSource"/>
+ <property name="xaProperties">
+ 	<props>
+ 		<prop key="databaseName">xe</prop>
+ 		<prop key="user">system</prop>
+ 		<prop key="password">manager</prop>
+ 		<prop key="url">jdbc:oracle:thin:@localhost:1521:xe</prop>
+ 		
+ 	</props>
+ </property>
+ <property name="poolSize" value="10"/>
+ </bean>
+ 
+ <bean id="mysqlDS" class="com.atomikos.jdbc.AtomikosDataSourceBean">
+ <property name="uniqueResourceName" value="XAmysql"/>
+ <property name="xaDataSourceClassName" value="com.mysql.jdbc.jdbc2.optional.MysqlXADataSource"/>
+ <property name="xaProperties">
+ 	<props>
+ 		<prop key="databaseName">mysqldb</prop>
+ 		<prop key="user">root</prop>
+ 		<prop key="password">root</prop>
+ 		<prop key="url">jdbc:mysql:///mysqldb</prop>
+ 		
+ 	</props>
+ </property>
+ <property name="poolSize" value="10"/>
+ </bean>
+ <bean id="jt1" class="org.springframework.jdbc.core.JdbcTemplate">
+ 	<constructor-arg ref="oraDS"/>
+ </bean>
+ <bean id="jt2" class="org.springframework.jdbc.core.JdbcTemplate">
+ 	<constructor-arg ref="mysqlDS"/>
+ </bean>
+ <bean id="wDao" class="com.pg.dao.WithdrawDAOImpl">
+ 	<constructor-arg ref="jt1"/>
+ </bean>
+ <bean id="dDao" class="com.pg.dao.DepositeDAOImpl">
+ 	<constructor-arg ref="jt2"/>
+ </bean>
+ <bean id="service" class="com.pg.service.AccountService">
+ 	<property name="depositeDAO" ref="dDao"/>
+ 	<property name="withdrawDAO" ref="wDao"/>
+ </bean>
+ <bean id="atomikosTxMgmr" class="com.atomikos.icatch.jta.UserTransactionManager" init-method="init" destroy-method="close">
+ 	<property name="forceShutdown" value="true"/>
+ </bean>
+ <bean id="atomikosUT" class="com.atomikos.icatch.jta.UserTransactionImp">
+ 	<property name="transactionTimeout" value="300"/>
+ </bean>
+ <bean id="dtxmgr" class="org.springframework.transaction.jta.JtaTransactionManager">
+ 	<property name="transactionManager" ref="atomikosTxMgmr"/>
+ 	<property name="userTransaction" ref="atomikosUT"/>
+ </bean>
+ <tx:annotation-driven transaction-manager="dtxmgr"/>
+ </beans>
